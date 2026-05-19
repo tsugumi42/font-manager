@@ -18,10 +18,22 @@ function scanSummaryText() {
   const summary = fontStore.lastScanSummary
   if (!summary) return ''
 
+  const restoredText = fontStore.libraryLoadedFromStorage ? '已恢复，' : ''
   const riskText = summary.previewRiskCount > 0
     ? `，${summary.previewRiskCount} 个 TTC 可能无法稳定预览`
     : ''
-  return `扫描 ${summary.total} 个文件：${summary.metadataNameCount} 个读取内部名称，${summary.fileNameFallbackCount} 个使用文件名兜底${riskText}`
+  return `${restoredText}扫描 ${summary.total} 个文件：${summary.metadataNameCount} 个读取内部名称，${summary.fileNameFallbackCount} 个使用文件名兜底${riskText}`
+}
+
+function libraryMetaText() {
+  const parts: string[] = []
+  if (fontStore.lastScannedAt) {
+    parts.push(`上次扫描 ${new Date(fontStore.lastScannedAt).toLocaleString()}`)
+  }
+  if (fontStore.libraryDirectories.length > 0) {
+    parts.push(fontStore.libraryDirectories[0])
+  }
+  return parts.join(' · ')
 }
 
 async function scanDirectory() {
@@ -71,7 +83,7 @@ async function scanDirectory() {
         :loading="fontStore.isLoadingFonts"
         @click="scanDirectory"
       >
-        扫描目录
+        {{ fontStore.libraryDirectories.length > 0 ? '重新扫描' : '扫描目录' }}
       </NButton>
     </div>
     <NAlert
@@ -88,7 +100,8 @@ async function scanDirectory() {
       :show-icon="false"
       class="scan-summary"
     >
-      {{ scanSummaryText() }}
+      <div class="summary-text">{{ scanSummaryText() }}</div>
+      <div v-if="libraryMetaText()" class="summary-meta">{{ libraryMetaText() }}</div>
     </NAlert>
     <NScrollbar class="list-scroll">
       <div v-if="fontStore.filteredFonts.length > 0" class="font-list">
@@ -140,6 +153,17 @@ async function scanDirectory() {
 .scan-summary {
   margin: 8px 12px 0;
   flex-shrink: 0;
+}
+
+.summary-text {
+  line-height: 1.4;
+}
+
+.summary-meta {
+  margin-top: 2px;
+  font-size: 12px;
+  opacity: 0.75;
+  word-break: break-all;
 }
 
 .list-scroll {

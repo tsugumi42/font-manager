@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { ALL_TAGS } from '@/data/mockFonts'
 import { getPreviewTemplate } from '@/data/previewTemplates'
 import { mockFontRepository } from '@/services/fontRepository'
+import { loadSavedFontLibrary, saveFontLibrary } from '@/services/fontLibraryStorage'
 import { scanFontDirectory as scanTauriFontDirectory } from '@/services/tauriFontRepository'
 import type { LyricsEffect } from '@/types/preview'
 import type {
@@ -34,6 +35,9 @@ export const useFontStore = defineStore('font', () => {
     const isLoadingFonts = ref(false)
     const fontLoadError = ref<string | null>(null)
     const lastScanSummary = ref<ScanSummary | null>(null)
+    const libraryDirectories = ref<string[]>([])
+    const lastScannedAt = ref<string | null>(null)
+    const libraryLoadedFromStorage = ref(false)
 
     const selectedFontId = ref<string | null>(null)
     const activeTab = ref<TabKey>('preview')
@@ -270,8 +274,22 @@ export const useFontStore = defineStore('font', () => {
         fontLoadError.value = null
 
         try {
+            const savedLibrary = await loadSavedFontLibrary().catch(() => null)
+            if (savedLibrary && savedLibrary.fonts.length > 0) {
+                fonts.value = savedLibrary.fonts
+                libraryDirectories.value = savedLibrary.directories
+                lastScannedAt.value = savedLibrary.lastScannedAt
+                libraryLoadedFromStorage.value = true
+                lastScanSummary.value = makeScanSummary(savedLibrary.fonts)
+                selectedFontId.value = savedLibrary.fonts[0].id
+                return
+            }
+
             fonts.value = await mockFontRepository.listFonts()
             lastScanSummary.value = null
+            libraryDirectories.value = []
+            lastScannedAt.value = null
+            libraryLoadedFromStorage.value = false
             if (!selectedFontId.value && fonts.value.length > 0) {
                 selectedFontId.value = fonts.value[0].id
             }
@@ -290,6 +308,9 @@ export const useFontStore = defineStore('font', () => {
             const scannedFonts = await scanTauriFontDirectory(path)
             fonts.value = scannedFonts
             lastScanSummary.value = makeScanSummary(scannedFonts)
+            libraryDirectories.value = [path]
+            lastScannedAt.value = new Date().toISOString()
+            libraryLoadedFromStorage.value = false
             selectedFontId.value = scannedFonts[0]?.id ?? null
             activeTab.value = 'preview'
             compareFontIds.value = []
@@ -299,6 +320,11 @@ export const useFontStore = defineStore('font', () => {
             clearTagFilter()
             clearLanguageFilter()
             clearLicenseFilter()
+            await saveFontLibrary({
+                directories: libraryDirectories.value,
+                lastScannedAt: lastScannedAt.value,
+                fonts: scannedFonts,
+            })
         } catch (error) {
             fontLoadError.value = error instanceof Error ? error.message : String(error)
         } finally {
@@ -470,6 +496,9 @@ export const useFontStore = defineStore('font', () => {
         isLoadingFonts,
         fontLoadError,
         lastScanSummary,
+        libraryDirectories,
+        lastScannedAt,
+        libraryLoadedFromStorage,
         selectedFontId,
         activeTab,
         searchQuery,
