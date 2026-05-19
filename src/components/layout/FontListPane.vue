@@ -1,13 +1,16 @@
 <script setup lang="ts">
+import { watch } from 'vue'
 import { open } from '@tauri-apps/plugin-dialog'
 import { NAlert, NButton, NInput, NSelect, NVirtualList, NEmpty, useMessage } from 'naive-ui'
 import { useFontStore } from '@/stores/fontStore'
 import FontListItem from '@/components/font/FontListItem.vue'
+import { preloadFontFaces } from '@/services/fontFaceRegistry'
 import type { SortKey } from '@/types/font'
 
 const fontStore = useFontStore()
 const message = useMessage()
 const virtualItemSize = 96
+const preloadWindowSize = 36
 
 const sortOptions = [
   { label: '按名称', value: 'name' as SortKey },
@@ -37,6 +40,18 @@ function libraryMetaText() {
   return parts.join(' · ')
 }
 
+function preloadVisibleFonts(startIndex: number) {
+  const start = Math.max(0, startIndex - 8)
+  const end = start + preloadWindowSize
+  preloadFontFaces(fontStore.filteredFonts.slice(start, end))
+}
+
+function handleListScroll(event: Event) {
+  const target = event.target as HTMLElement | null
+  const scrollTop = target?.scrollTop ?? 0
+  preloadVisibleFonts(Math.floor(scrollTop / virtualItemSize))
+}
+
 async function scanDirectory() {
   let selected: string | string[] | null
   try {
@@ -59,6 +74,12 @@ async function scanDirectory() {
     message.success(scanSummaryText())
   }
 }
+
+watch(
+  () => fontStore.filteredFonts,
+  () => preloadVisibleFonts(0),
+  { immediate: true, flush: 'post' },
+)
 </script>
 
 <template>
@@ -110,6 +131,7 @@ async function scanDirectory() {
         :items="fontStore.filteredFonts"
         :item-size="virtualItemSize"
         key-field="id"
+        @scroll="handleListScroll"
       >
         <template #default="{ item: font }">
           <div class="font-list-row">

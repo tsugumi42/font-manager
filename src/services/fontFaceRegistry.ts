@@ -3,6 +3,7 @@ import type { FontData } from '@/types/font'
 
 const STYLE_ELEMENT_ID = 'font-manager-dynamic-font-faces'
 const registeredFontFaceRules = new Map<string, string>()
+const preloadedFontFaces = new Set<string>()
 
 export function attachRenderFamilies(fonts: FontData[]): FontData[] {
     clearRegisteredFontFaces()
@@ -15,6 +16,23 @@ export function attachRenderFamilies(fonts: FontData[]): FontData[] {
 export function fontFamilyCss(font: FontData): string {
     registerFontFace(font)
     return `"${escapeCssString(font.renderFamily || font.family)}", "Microsoft YaHei", sans-serif`
+}
+
+export function preloadFontFaces(fonts: FontData[]) {
+    if (typeof document === 'undefined') return
+    if (!document.fonts) return
+
+    for (const font of fonts) {
+        registerFontFace(font)
+
+        const family = font.renderFamily || font.family
+        if (preloadedFontFaces.has(family)) continue
+
+        preloadedFontFaces.add(family)
+        void document.fonts
+            .load(`14px "${escapeCssString(family)}"`)
+            .catch(() => undefined)
+    }
 }
 
 function registerFontFace(font: FontData) {
@@ -39,6 +57,7 @@ function registerFontFace(font: FontData) {
 
 function clearRegisteredFontFaces() {
     registeredFontFaceRules.clear()
+    preloadedFontFaces.clear()
     if (typeof document === 'undefined') return
     const existing = document.getElementById(STYLE_ELEMENT_ID)
     if (existing instanceof HTMLStyleElement) {
