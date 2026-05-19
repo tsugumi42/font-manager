@@ -123,9 +123,12 @@ fn parse_font_name_metadata(data: &[u8]) -> Option<FontNameMetadata> {
         ..FontNameMetadata::default()
     };
 
-    metadata.family = best_name(&face, ttf_parser::name_id::FAMILY);
-    metadata.style = best_name(&face, ttf_parser::name_id::SUBFAMILY);
-    metadata.full_name = best_name(&face, ttf_parser::name_id::FULL_NAME);
+    metadata.family = best_name(&face, ttf_parser::name_id::TYPOGRAPHIC_FAMILY)
+        .or_else(|| best_name(&face, ttf_parser::name_id::FAMILY));
+    metadata.style = best_name(&face, ttf_parser::name_id::TYPOGRAPHIC_SUBFAMILY)
+        .or_else(|| best_name(&face, ttf_parser::name_id::SUBFAMILY));
+    metadata.full_name = best_name(&face, ttf_parser::name_id::FULL_NAME)
+        .or_else(|| best_name(&face, ttf_parser::name_id::COMPATIBLE_FULL));
     metadata.version = best_name(&face, ttf_parser::name_id::VERSION);
     metadata.vendor = best_name(&face, ttf_parser::name_id::MANUFACTURER);
     metadata.copyright = best_name(&face, ttf_parser::name_id::COPYRIGHT_NOTICE);
@@ -137,9 +140,91 @@ fn best_name(face: &ttf_parser::Face<'_>, name_id: u16) -> Option<String> {
     face.names()
         .into_iter()
         .filter(|name| name.name_id == name_id && name.is_unicode())
-        .filter_map(|name| name.to_string())
-        .map(|name| name.trim().to_string())
-        .find(|name| !name.is_empty())
+        .filter_map(|name| {
+            let value = normalize_metadata_name(name.to_string()?)?;
+            Some((metadata_name_score(&name, &value), value))
+        })
+        .max_by_key(|(score, _)| *score)
+        .map(|(_, value)| value)
+}
+
+fn normalize_metadata_name(name: String) -> Option<String> {
+    let value = name
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .trim()
+        .to_string();
+
+    if is_suspicious_metadata_name(&value) {
+        None
+    } else {
+        Some(value)
+    }
+}
+
+fn metadata_name_score(name: &ttf_parser::name::Name<'_>, value: &str) -> i32 {
+    language_score(name.language_id)
+        + platform_score(name.platform_id)
+        + character_quality_score(value)
+}
+
+fn language_score(language_id: u16) -> i32 {
+    match language_id {
+        0x0804 | 0x0404 | 0x0c04 | 0x1004 | 0x1404 => 100, // zh-CN/TW/HK/SG/MO
+        0x0411 => 95,                                    // ja-JP
+        0x0412 => 90,                                    // ko-KR
+        0x0409 | 0x0809 => 85,                           // en-US/en-GB
+        0 => 50,
+        _ => 40,
+    }
+}
+
+fn platform_score(platform_id: ttf_parser::PlatformId) -> i32 {
+    match platform_id {
+        ttf_parser::PlatformId::Windows => 30,
+        ttf_parser::PlatformId::Unicode => 20,
+        _ => 0,
+    }
+}
+
+fn character_quality_score(value: &str) -> i32 {
+    let mut score = 0;
+    if value.chars().any(is_cjk) {
+        score += 25;
+    }
+    if value.chars().any(|ch| ch.is_ascii_alphabetic()) {
+        score += 10;
+    }
+    score - (value.chars().filter(|ch| *ch == '?').count() as i32 * 20)
+}
+
+fn is_suspicious_metadata_name(value: &str) -> bool {
+    if value.is_empty() || value.contains('\u{fffd}') {
+        return true;
+    }
+
+    if value
+        .chars()
+        .any(|ch| ch.is_control() && !ch.is_whitespace())
+    {
+        return true;
+    }
+
+    let non_space_count = value.chars().filter(|ch| !ch.is_whitespace()).count();
+    let question_count = value.chars().filter(|ch| *ch == '?').count();
+    question_count >= 2 && question_count * 3 >= non_space_count
+}
+
+fn is_cjk(ch: char) -> bool {
+    matches!(
+        ch as u32,
+        0x3400..=0x4dbf
+            | 0x4e00..=0x9fff
+            | 0xf900..=0xfaff
+            | 0x3040..=0x30ff
+            | 0xac00..=0xd7af
+    )
 }
 
 fn format_file_size(bytes: u64) -> String {
@@ -160,7 +245,7 @@ mod tests {
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    use super::scan_font_directory;
+    use super::{normalize_metadata_name, scan_font_directory};
 
     struct TestDir {
         path: PathBuf,
@@ -249,5 +334,23 @@ mod tests {
             .expect_err("missing directory should fail");
 
         assert!(error.contains("Directory does not exist"));
+    }
+
+    #[test]
+    fn rejects_question_mark_placeholder_names() {
+        assert_eq!(normalize_metadata_name("???? W01".to_string()), None);
+        assert_eq!(normalize_metadata_name("?????????? Regular".to_string()), None);
+    }
+
+    #[test]
+    fn keeps_readable_metadata_names() {
+        assert_eq!(
+            normalize_metadata_name("  TsangerFeiBai   W01  ".to_string()),
+            Some("TsangerFeiBai W01".to_string())
+        );
+        assert_eq!(
+            normalize_metadata_name("筑紫A丸ゴシック".to_string()),
+            Some("筑紫A丸ゴシック".to_string())
+        );
     }
 }
