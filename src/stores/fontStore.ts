@@ -26,11 +26,15 @@ export interface ScanSummary {
     previewRiskCount: number
 }
 
+const USER_DATA_SAVE_DELAY_MS = 500
+
 function makeTriFilter(): TriFilterState {
     return { positive: [], negative: [] }
 }
 
 export const useFontStore = defineStore('font', () => {
+    let librarySaveTimer: number | undefined
+
     const fonts = ref<FontData[]>([])
     const isLoadingFonts = ref(false)
     const fontLoadError = ref<string | null>(null)
@@ -305,7 +309,7 @@ export const useFontStore = defineStore('font', () => {
         fontLoadError.value = null
 
         try {
-            const scannedFonts = await scanTauriFontDirectory(path)
+            const scannedFonts = mergeUserMetadata(await scanTauriFontDirectory(path), fonts.value)
             fonts.value = scannedFonts
             lastScanSummary.value = makeScanSummary(scannedFonts)
             libraryDirectories.value = [path]
@@ -341,6 +345,58 @@ export const useFontStore = defineStore('font', () => {
         }
     }
 
+    function canSaveLibrary(): boolean {
+        return libraryDirectories.value.length > 0 && Boolean(lastScannedAt.value)
+    }
+
+    async function saveCurrentLibrary(): Promise<void> {
+        if (!canSaveLibrary()) return
+
+        await saveFontLibrary({
+            directories: libraryDirectories.value,
+            lastScannedAt: lastScannedAt.value!,
+            fonts: fonts.value,
+        })
+    }
+
+    function scheduleLibrarySave() {
+        if (!canSaveLibrary()) return
+
+        if (typeof window === 'undefined') {
+            void saveCurrentLibrary()
+            return
+        }
+
+        if (librarySaveTimer !== undefined) {
+            window.clearTimeout(librarySaveTimer)
+        }
+
+        librarySaveTimer = window.setTimeout(() => {
+            librarySaveTimer = undefined
+            void saveCurrentLibrary().catch((error) => {
+                fontLoadError.value = error instanceof Error ? error.message : String(error)
+            })
+        }, USER_DATA_SAVE_DELAY_MS)
+    }
+
+    function mergeUserMetadata(scannedFonts: FontData[], previousFonts: FontData[]): FontData[] {
+        const previousById = new Map(previousFonts.map((font) => [font.id, font]))
+
+        return scannedFonts.map((font) => {
+            const previous = previousById.get(font.id)
+            if (!previous) return font
+
+            return {
+                ...font,
+                favorite: previous.favorite,
+                tags: [...previous.tags],
+                licenseStatus: previous.licenseStatus,
+                note: previous.note,
+                website: previous.website,
+            }
+        })
+    }
+
     function setTab(tab: TabKey) {
         activeTab.value = tab
     }
@@ -349,6 +405,7 @@ export const useFontStore = defineStore('font', () => {
         const font = fonts.value.find((f) => f.id === fontId)
         if (font) {
             font.favorite = !font.favorite
+            scheduleLibrarySave()
         }
     }
 
@@ -443,6 +500,7 @@ export const useFontStore = defineStore('font', () => {
         const font = fonts.value.find((f) => f.id === fontId)
         if (font && tag.trim() && !font.tags.includes(tag.trim())) {
             font.tags.push(tag.trim())
+            scheduleLibrarySave()
         }
     }
 
@@ -450,6 +508,7 @@ export const useFontStore = defineStore('font', () => {
         const font = fonts.value.find((f) => f.id === fontId)
         if (font) {
             font.tags = font.tags.filter((t) => t !== tag)
+            scheduleLibrarySave()
         }
     }
 
@@ -457,6 +516,7 @@ export const useFontStore = defineStore('font', () => {
         const font = fonts.value.find((f) => f.id === fontId)
         if (font) {
             font.note = note
+            scheduleLibrarySave()
         }
     }
 
@@ -464,6 +524,7 @@ export const useFontStore = defineStore('font', () => {
         const font = fonts.value.find((f) => f.id === fontId)
         if (font) {
             font.website = website
+            scheduleLibrarySave()
         }
     }
 
@@ -471,6 +532,7 @@ export const useFontStore = defineStore('font', () => {
         const font = fonts.value.find((f) => f.id === fontId)
         if (font && status) {
             font.licenseStatus = status as FontData['licenseStatus']
+            scheduleLibrarySave()
         }
     }
 
