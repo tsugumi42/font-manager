@@ -5,6 +5,7 @@ import type { FontData } from '@/types/font'
 interface ScannedFont {
     id: string
     name: string
+    nameSource: 'metadata' | 'file_name'
     family: string
     style: string
     source: FontData['source']

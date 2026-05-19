@@ -16,6 +16,7 @@ export interface UnicodeRangeCoverage {
 export interface FontData {
   id: string
   name: string
+  nameSource?: 'metadata' | 'file_name'
   family: string
   renderFamily?: string
   style: string

@@ -18,6 +18,13 @@ export interface TriFilterState {
     negative: string[]
 }
 
+export interface ScanSummary {
+    total: number
+    metadataNameCount: number
+    fileNameFallbackCount: number
+    previewRiskCount: number
+}
+
 function makeTriFilter(): TriFilterState {
     return { positive: [], negative: [] }
 }
@@ -26,6 +33,7 @@ export const useFontStore = defineStore('font', () => {
     const fonts = ref<FontData[]>([])
     const isLoadingFonts = ref(false)
     const fontLoadError = ref<string | null>(null)
+    const lastScanSummary = ref<ScanSummary | null>(null)
 
     const selectedFontId = ref<string | null>(null)
     const activeTab = ref<TabKey>('preview')
@@ -263,6 +271,7 @@ export const useFontStore = defineStore('font', () => {
 
         try {
             fonts.value = await mockFontRepository.listFonts()
+            lastScanSummary.value = null
             if (!selectedFontId.value && fonts.value.length > 0) {
                 selectedFontId.value = fonts.value[0].id
             }
@@ -280,6 +289,7 @@ export const useFontStore = defineStore('font', () => {
         try {
             const scannedFonts = await scanTauriFontDirectory(path)
             fonts.value = scannedFonts
+            lastScanSummary.value = makeScanSummary(scannedFonts)
             selectedFontId.value = scannedFonts[0]?.id ?? null
             activeTab.value = 'preview'
             compareFontIds.value = []
@@ -293,6 +303,15 @@ export const useFontStore = defineStore('font', () => {
             fontLoadError.value = error instanceof Error ? error.message : String(error)
         } finally {
             isLoadingFonts.value = false
+        }
+    }
+
+    function makeScanSummary(scannedFonts: FontData[]): ScanSummary {
+        return {
+            total: scannedFonts.length,
+            metadataNameCount: scannedFonts.filter((font) => font.nameSource === 'metadata').length,
+            fileNameFallbackCount: scannedFonts.filter((font) => font.nameSource !== 'metadata').length,
+            previewRiskCount: scannedFonts.filter((font) => font.format === 'ttc').length,
         }
     }
 
@@ -450,6 +469,7 @@ export const useFontStore = defineStore('font', () => {
         fonts,
         isLoadingFonts,
         fontLoadError,
+        lastScanSummary,
         selectedFontId,
         activeTab,
         searchQuery,

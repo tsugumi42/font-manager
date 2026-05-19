@@ -62,6 +62,7 @@ fn scan_dir(dir: &Path, fonts: &mut Vec<ScannedFont>) -> Result<(), String> {
             .unwrap_or("Unknown Font")
             .to_string();
         let font_metadata = read_font_name_metadata(&path, &extension);
+        let has_internal_name = font_metadata.full_name.is_some() || font_metadata.family.is_some();
         let name = font_metadata
             .full_name
             .clone()
@@ -85,6 +86,7 @@ fn scan_dir(dir: &Path, fonts: &mut Vec<ScannedFont>) -> Result<(), String> {
         fonts.push(ScannedFont {
             id: path_string.clone(),
             name,
+            name_source: if has_internal_name { "metadata" } else { "file_name" }.to_string(),
             family,
             style,
             source: "custom".to_string(),
@@ -212,6 +214,7 @@ mod tests {
         let names = fonts.iter().map(|font| font.name.as_str()).collect::<Vec<_>>();
         assert_eq!(names, vec!["Alpha Sans", "Beta Serif"]);
         assert_eq!(fonts[0].format, "ttf");
+        assert_eq!(fonts[0].name_source, "file_name");
         assert_eq!(fonts[0].file_name, "Alpha Sans.ttf");
         assert_eq!(fonts[0].file_size, "2.0 KB");
         assert_eq!(fonts[0].style, "Regular");
@@ -229,6 +232,7 @@ mod tests {
             .expect("scan should succeed");
 
         assert_eq!(fonts[0].name, "Unreadable Internal Name");
+        assert_eq!(fonts[0].name_source, "file_name");
         assert_eq!(fonts[0].family, "Unreadable Internal Name");
         assert_eq!(fonts[0].style, "Regular");
         assert_eq!(fonts[0].version, "");

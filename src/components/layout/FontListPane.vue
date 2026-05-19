@@ -14,6 +14,16 @@ const sortOptions = [
   { label: '按授权', value: 'license' as SortKey },
 ]
 
+function scanSummaryText() {
+  const summary = fontStore.lastScanSummary
+  if (!summary) return ''
+
+  const riskText = summary.previewRiskCount > 0
+    ? `，${summary.previewRiskCount} 个 TTC 可能无法稳定预览`
+    : ''
+  return `扫描 ${summary.total} 个文件：${summary.metadataNameCount} 个读取内部名称，${summary.fileNameFallbackCount} 个使用文件名兜底${riskText}`
+}
+
 async function scanDirectory() {
   let selected: string | string[] | null
   try {
@@ -33,7 +43,7 @@ async function scanDirectory() {
   if (fontStore.fontLoadError) {
     message.error(fontStore.fontLoadError)
   } else {
-    message.success(`已扫描 ${fontStore.fonts.length} 个字体文件`)
+    message.success(scanSummaryText())
   }
 }
 </script>
@@ -71,6 +81,14 @@ async function scanDirectory() {
       class="load-error"
     >
       {{ fontStore.fontLoadError }}
+    </NAlert>
+    <NAlert
+      v-else-if="fontStore.lastScanSummary"
+      type="info"
+      :show-icon="false"
+      class="scan-summary"
+    >
+      {{ scanSummaryText() }}
     </NAlert>
     <NScrollbar class="list-scroll">
       <div v-if="fontStore.filteredFonts.length > 0" class="font-list">
@@ -118,7 +136,8 @@ async function scanDirectory() {
   flex-shrink: 0;
 }
 
-.load-error {
+.load-error,
+.scan-summary {
   margin: 8px 12px 0;
   flex-shrink: 0;
 }

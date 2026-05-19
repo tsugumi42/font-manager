@@ -5,6 +5,7 @@ use serde::Serialize;
 pub struct ScannedFont {
     pub id: String,
     pub name: String,
+    pub name_source: String,
     pub family: String,
     pub style: String,
     pub source: String,
