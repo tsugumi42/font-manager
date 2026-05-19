@@ -4,7 +4,6 @@ import { NTag, NButton, NTooltip } from 'naive-ui'
 import type { FontData } from '@/types/font'
 import { LANGUAGE_LABELS, LICENSE_LABELS } from '@/data/mockFonts'
 import { useFontStore } from '@/stores/fontStore'
-import { fontFamilyCss } from '@/services/fontFaceRegistry'
 
 const props = defineProps<{
   font: FontData
@@ -22,7 +21,6 @@ const licenseColors: Record<string, string> = {
 
 const inCompare = computed(() => fontStore.isInCompare(props.font.id))
 const compareFull = computed(() => fontStore.isCompareFull())
-const sampleFontFamily = computed(() => fontFamilyCss(props.font))
 
 function onToggleFav(e: MouseEvent) {
   e.stopPropagation()
@@ -42,7 +40,7 @@ function onToggleCompare(e: MouseEvent) {
         <span class="font-name">{{ font.name }}</span>
         <span class="font-style">{{ font.style }}</span>
       </div>
-      <div class="font-sample" :style="{ fontFamily: sampleFontFamily }">
+      <div class="font-sample">
         {{ font.sampleText }}
       </div>
       <div class="item-meta">

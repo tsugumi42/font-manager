@@ -4,7 +4,6 @@ import { ALL_TAGS } from '@/data/mockFonts'
 import { getPreviewTemplate } from '@/data/previewTemplates'
 import { mockFontRepository } from '@/services/fontRepository'
 import { loadSavedFontLibrary, saveFontLibrary } from '@/services/fontLibraryStorage'
-import { warmFontFaceCache } from '@/services/fontFaceRegistry'
 import { scanFontDirectory as scanTauriFontDirectory } from '@/services/tauriFontRepository'
 import type { LyricsEffect } from '@/types/preview'
 import type {
@@ -283,7 +282,6 @@ export const useFontStore = defineStore('font', () => {
                 libraryLoadedFromStorage.value = true
                 lastScanSummary.value = makeScanSummary(savedLibrary.fonts)
                 selectedFontId.value = savedLibrary.fonts[0].id
-                warmFontFaceCache(savedLibrary.fonts)
                 return
             }
 
@@ -322,7 +320,6 @@ export const useFontStore = defineStore('font', () => {
             clearTagFilter()
             clearLanguageFilter()
             clearLicenseFilter()
-            warmFontFaceCache(scannedFonts)
             await saveFontLibrary({
                 directories: libraryDirectories.value,
                 lastScannedAt: lastScannedAt.value,
