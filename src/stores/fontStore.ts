@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { mockFonts, ALL_TAGS } from '@/data/mockFonts'
+import { ALL_TAGS } from '@/data/mockFonts'
 import { getPreviewTemplate } from '@/data/previewTemplates'
+import { mockFontRepository } from '@/services/fontRepository'
 import type { LyricsEffect } from '@/types/preview'
 import type {
     FontData,
@@ -21,7 +22,9 @@ function makeTriFilter(): TriFilterState {
 }
 
 export const useFontStore = defineStore('font', () => {
-    const fonts = ref<FontData[]>([...mockFonts])
+    const fonts = ref<FontData[]>([])
+    const isLoadingFonts = ref(false)
+    const fontLoadError = ref<string | null>(null)
 
     const selectedFontId = ref<string | null>(null)
     const activeTab = ref<TabKey>('preview')
@@ -253,6 +256,22 @@ export const useFontStore = defineStore('font', () => {
         activeTab.value = 'preview'
     }
 
+    async function loadFonts() {
+        isLoadingFonts.value = true
+        fontLoadError.value = null
+
+        try {
+            fonts.value = await mockFontRepository.listFonts()
+            if (!selectedFontId.value && fonts.value.length > 0) {
+                selectedFontId.value = fonts.value[0].id
+            }
+        } catch (error) {
+            fontLoadError.value = error instanceof Error ? error.message : String(error)
+        } finally {
+            isLoadingFonts.value = false
+        }
+    }
+
     function setTab(tab: TabKey) {
         activeTab.value = tab
     }
@@ -405,6 +424,8 @@ export const useFontStore = defineStore('font', () => {
 
     return {
         fonts,
+        isLoadingFonts,
+        fontLoadError,
         selectedFontId,
         activeTab,
         searchQuery,
@@ -445,6 +466,7 @@ export const useFontStore = defineStore('font', () => {
         languageOptions,
         licenseOptions,
         // 字体操作
+        loadFonts,
         selectFont,
         setTab,
         toggleFavorite,

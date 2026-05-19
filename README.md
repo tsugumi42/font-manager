@@ -51,7 +51,7 @@ npm install
 npm run dev
 ```
 
-浏览器打开 http://localhost:1420
+浏览器打开 http://localhost:1430
 
 ### 开发模式运行（带 Tauri 桌面窗口）
 

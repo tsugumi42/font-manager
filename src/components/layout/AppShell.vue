@@ -1,7 +1,15 @@
 <script setup lang="ts">
+import { onMounted } from 'vue'
+import { useFontStore } from '@/stores/fontStore'
 import Sidebar from './Sidebar.vue'
 import FontListPane from './FontListPane.vue'
 import DetailPane from './DetailPane.vue'
+
+const fontStore = useFontStore()
+
+onMounted(() => {
+  void fontStore.loadFonts()
+})
 </script>
 
 <template>
