@@ -9,6 +9,7 @@ interface ScannedFont {
     style: string
     source: FontData['source']
     path: string
+    fileName: string
     format: FontData['format']
     fileSize: string
     isVariable: boolean

@@ -21,6 +21,7 @@ export interface FontData {
   style: string
   source: FontSource
   path: string
+  fileName?: string
   format: FontFormat
   fileSize: string
   languages: LanguageCode[]

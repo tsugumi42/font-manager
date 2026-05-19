@@ -36,7 +36,7 @@ function onToggleCompare(e: MouseEvent) {
 </script>
 
 <template>
-  <div class="font-list-item" :class="{ selected }">
+  <div class="font-list-item" :class="{ selected }" :title="font.path">
     <div class="item-main">
       <div class="item-header">
         <span class="font-name">{{ font.name }}</span>

@@ -9,6 +9,7 @@ pub struct ScannedFont {
     pub style: String,
     pub source: String,
     pub path: String,
+    pub file_name: String,
     pub format: String,
     pub file_size: String,
     pub is_variable: bool,

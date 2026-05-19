@@ -1,33 +1,55 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { NCard, NTag, NDivider, NText, NSpace } from 'naive-ui'
+import { NButton, NCard, NTag, NDivider, NText, NSpace, useMessage } from 'naive-ui'
 import { useFontStore } from '@/stores/fontStore'
 import { LICENSE_LABELS } from '@/data/mockFonts'
 import UnicodeCoverage from './UnicodeCoverage.vue'
 
 const fontStore = useFontStore()
+const message = useMessage()
 const font = computed(() => fontStore.selectedFont)
 
 const infoRows = computed(() => {
   if (!font.value) return []
   const f = font.value
   return [
+    { label: '显示名称', value: f.name },
     { label: '字体族名', value: f.family },
     { label: '子样式', value: f.style },
+    { label: '原始文件名', value: f.fileName || '' },
     { label: '文件路径', value: f.path },
     { label: '文件格式', value: f.format.toUpperCase() },
     { label: '文件大小', value: f.fileSize },
     { label: '字体版本', value: f.version },
     { label: '厂商', value: f.vendor },
     { label: '版权信息', value: f.copyright },
-  ]
+  ].filter((row) => row.value)
 })
+
+async function copyPath() {
+  if (!font.value?.path) return
+
+  try {
+    await navigator.clipboard.writeText(font.value.path)
+    message.success('已复制文件路径')
+  } catch (error) {
+    message.error(error instanceof Error ? error.message : '复制文件路径失败')
+  }
+}
 </script>
 
 <template>
   <div class="font-info-panel" v-if="font">
     <!-- 基本信息 -->
     <NCard size="small" :bordered="true" class="info-card">
+      <template #header>
+        <div class="card-header">
+          <NText strong>基础信息</NText>
+          <NButton size="tiny" quaternary type="primary" @click="copyPath">
+            复制路径
+          </NButton>
+        </div>
+      </template>
       <div class="info-table">
         <div v-for="row in infoRows" :key="row.label" class="info-row">
           <span class="info-label">{{ row.label }}</span>
@@ -76,6 +98,13 @@ const infoRows = computed(() => {
 .info-card,
 .coverage-card {
   flex-shrink: 0;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .info-table {

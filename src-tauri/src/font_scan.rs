@@ -76,6 +76,11 @@ fn scan_dir(dir: &Path, fonts: &mut Vec<ScannedFont>) -> Result<(), String> {
             .clone()
             .unwrap_or_else(|| "Regular".to_string());
         let path_string = path.to_string_lossy().to_string();
+        let file_name = path
+            .file_name()
+            .and_then(|value| value.to_str())
+            .unwrap_or("")
+            .to_string();
 
         fonts.push(ScannedFont {
             id: path_string.clone(),
@@ -84,6 +89,7 @@ fn scan_dir(dir: &Path, fonts: &mut Vec<ScannedFont>) -> Result<(), String> {
             style,
             source: "custom".to_string(),
             path: path_string,
+            file_name,
             format: extension,
             file_size: format_file_size(metadata.len()),
             is_variable: font_metadata.is_variable,
@@ -206,6 +212,7 @@ mod tests {
         let names = fonts.iter().map(|font| font.name.as_str()).collect::<Vec<_>>();
         assert_eq!(names, vec!["Alpha Sans", "Beta Serif"]);
         assert_eq!(fonts[0].format, "ttf");
+        assert_eq!(fonts[0].file_name, "Alpha Sans.ttf");
         assert_eq!(fonts[0].file_size, "2.0 KB");
         assert_eq!(fonts[0].style, "Regular");
         assert!(!fonts[0].is_variable);
