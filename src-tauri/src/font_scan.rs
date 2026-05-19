@@ -18,7 +18,13 @@ struct FontNameMetadata {
 }
 
 #[tauri::command]
-pub fn scan_font_directory(path: String) -> Result<Vec<ScannedFont>, String> {
+pub async fn scan_font_directory(path: String) -> Result<Vec<ScannedFont>, String> {
+    tauri::async_runtime::spawn_blocking(move || scan_font_directory_sync(path))
+        .await
+        .map_err(|error| format!("Font scan task failed: {}", error))?
+}
+
+fn scan_font_directory_sync(path: String) -> Result<Vec<ScannedFont>, String> {
     let root = Path::new(&path);
     if !root.exists() {
         return Err(format!("Directory does not exist: {}", root.display()));
@@ -245,7 +251,7 @@ mod tests {
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    use super::{normalize_metadata_name, scan_font_directory};
+    use super::{normalize_metadata_name, scan_font_directory_sync};
 
     struct TestDir {
         path: PathBuf,
@@ -293,7 +299,7 @@ mod tests {
         dir.write_file("nested/Beta Serif.OTF", &[0; 512]);
         dir.write_file("notes.txt", b"not a font");
 
-        let fonts = scan_font_directory(dir.path().to_string_lossy().to_string())
+        let fonts = scan_font_directory_sync(dir.path().to_string_lossy().to_string())
             .expect("scan should succeed");
 
         let names = fonts.iter().map(|font| font.name.as_str()).collect::<Vec<_>>();
@@ -313,7 +319,7 @@ mod tests {
         let dir = TestDir::new("fallback");
         dir.write_file("Unreadable Internal Name.ttf", &[0; 128]);
 
-        let fonts = scan_font_directory(dir.path().to_string_lossy().to_string())
+        let fonts = scan_font_directory_sync(dir.path().to_string_lossy().to_string())
             .expect("scan should succeed");
 
         assert_eq!(fonts[0].name, "Unreadable Internal Name");
@@ -330,7 +336,7 @@ mod tests {
         let dir = TestDir::new("missing");
         let missing = dir.path().join("missing");
 
-        let error = scan_font_directory(missing.to_string_lossy().to_string())
+        let error = scan_font_directory_sync(missing.to_string_lossy().to_string())
             .expect_err("missing directory should fail");
 
         assert!(error.contains("Directory does not exist"));
