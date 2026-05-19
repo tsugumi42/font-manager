@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { NButton, NCard, NTag, NDivider, NText, NSpace, useMessage } from 'naive-ui'
 import { useFontStore } from '@/stores/fontStore'
 import { LICENSE_LABELS } from '@/data/mockFonts'
+import { fontWeightSummary } from '@/services/fontWeightOptions'
 import UnicodeCoverage from './UnicodeCoverage.vue'
 
 const fontStore = useFontStore()
@@ -20,6 +21,7 @@ const infoRows = computed(() => {
     { label: '文件路径', value: f.path },
     { label: '文件格式', value: f.format.toUpperCase() },
     { label: '文件大小', value: f.fileSize },
+    { label: '字重能力', value: fontWeightSummary(f) },
     { label: '字体版本', value: f.version },
     { label: '厂商', value: f.vendor },
     { label: '版权信息', value: f.copyright },

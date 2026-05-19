@@ -13,6 +13,12 @@ export interface UnicodeRangeCoverage {
   total: number
 }
 
+export interface FontWeightRange {
+  min: number
+  default: number
+  max: number
+}
+
 export interface FontData {
   id: string
   name: string
@@ -31,6 +37,9 @@ export interface FontData {
   favorite: boolean
   supportsVertical: boolean
   isVariable: boolean
+  weightClass?: number
+  availableWeights?: number[]
+  variableWeightRange?: FontWeightRange | null
   unicodeCoverage: UnicodeRangeCoverage[]
   missingCharsMock: string[]
   note: string

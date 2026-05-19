@@ -46,8 +46,7 @@ fn write_library_file(path: &Path, library: &Value) -> Result<(), String> {
 
     let text = serde_json::to_string_pretty(library)
         .map_err(|error| format!("Failed to serialize font library: {}", error))?;
-    fs::write(path, text)
-        .map_err(|error| format!("Failed to write {}: {}", path.display(), error))
+    fs::write(path, text).map_err(|error| format!("Failed to write {}: {}", path.display(), error))
 }
 
 #[cfg(test)]

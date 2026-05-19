@@ -1,12 +1,12 @@
 use std::fs;
 use std::path::Path;
 
-use crate::font_model::ScannedFont;
+use crate::font_model::{FontWeightRange, ScannedFont};
 
 const FONT_EXTENSIONS: &[&str] = &["ttf", "otf", "ttc", "woff", "woff2"];
 const PARSEABLE_FONT_EXTENSIONS: &[&str] = &["ttf", "otf", "ttc"];
 
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 struct FontNameMetadata {
     family: Option<String>,
     style: Option<String>,
@@ -15,6 +15,26 @@ struct FontNameMetadata {
     vendor: Option<String>,
     copyright: Option<String>,
     is_variable: bool,
+    weight_class: u16,
+    available_weights: Vec<u16>,
+    variable_weight_range: Option<FontWeightRange>,
+}
+
+impl Default for FontNameMetadata {
+    fn default() -> Self {
+        Self {
+            family: None,
+            style: None,
+            full_name: None,
+            version: None,
+            vendor: None,
+            copyright: None,
+            is_variable: false,
+            weight_class: 400,
+            available_weights: vec![400],
+            variable_weight_range: None,
+        }
+    }
 }
 
 #[tauri::command]
@@ -92,7 +112,12 @@ fn scan_dir(dir: &Path, fonts: &mut Vec<ScannedFont>) -> Result<(), String> {
         fonts.push(ScannedFont {
             id: path_string.clone(),
             name,
-            name_source: if has_internal_name { "metadata" } else { "file_name" }.to_string(),
+            name_source: if has_internal_name {
+                "metadata"
+            } else {
+                "file_name"
+            }
+            .to_string(),
             family,
             style,
             source: "custom".to_string(),
@@ -101,6 +126,9 @@ fn scan_dir(dir: &Path, fonts: &mut Vec<ScannedFont>) -> Result<(), String> {
             format: extension,
             file_size: format_file_size(metadata.len()),
             is_variable: font_metadata.is_variable,
+            weight_class: font_metadata.weight_class,
+            available_weights: font_metadata.available_weights,
+            variable_weight_range: font_metadata.variable_weight_range,
             version: font_metadata.version.unwrap_or_default(),
             vendor: font_metadata.vendor.unwrap_or_default(),
             copyright: font_metadata.copyright.unwrap_or_default(),
@@ -126,6 +154,7 @@ fn parse_font_name_metadata(data: &[u8]) -> Option<FontNameMetadata> {
     let face = ttf_parser::Face::parse(data, 0).ok()?;
     let mut metadata = FontNameMetadata {
         is_variable: face.is_variable(),
+        weight_class: face.weight().to_number(),
         ..FontNameMetadata::default()
     };
 
@@ -138,8 +167,56 @@ fn parse_font_name_metadata(data: &[u8]) -> Option<FontNameMetadata> {
     metadata.version = best_name(&face, ttf_parser::name_id::VERSION);
     metadata.vendor = best_name(&face, ttf_parser::name_id::MANUFACTURER);
     metadata.copyright = best_name(&face, ttf_parser::name_id::COPYRIGHT_NOTICE);
+    metadata.variable_weight_range = read_variable_weight_range(&face);
+    metadata.available_weights = available_weights(
+        metadata.weight_class,
+        metadata.variable_weight_range.as_ref(),
+    );
 
     Some(metadata)
+}
+
+fn read_variable_weight_range(face: &ttf_parser::Face<'_>) -> Option<FontWeightRange> {
+    let axis = face
+        .variation_axes()
+        .into_iter()
+        .find(|axis| axis.tag == ttf_parser::Tag::from_bytes(b"wght"))?;
+
+    Some(FontWeightRange {
+        min: clamp_weight_value(axis.min_value),
+        default: clamp_weight_value(axis.def_value),
+        max: clamp_weight_value(axis.max_value),
+    })
+}
+
+fn available_weights(
+    weight_class: u16,
+    variable_weight_range: Option<&FontWeightRange>,
+) -> Vec<u16> {
+    if let Some(range) = variable_weight_range {
+        let mut weights = [100_u16, 200, 300, 400, 500, 600, 700, 800, 900]
+            .into_iter()
+            .filter(|weight| *weight >= range.min && *weight <= range.max)
+            .collect::<Vec<_>>();
+        for weight in [range.min, range.default, range.max] {
+            if !weights.contains(&weight) {
+                weights.push(weight);
+            }
+        }
+        weights.sort_unstable();
+        weights.dedup();
+        weights
+    } else {
+        vec![normalize_weight_class(weight_class)]
+    }
+}
+
+fn clamp_weight_value(value: f32) -> u16 {
+    normalize_weight_class(value.round().clamp(1.0, 1000.0) as u16)
+}
+
+fn normalize_weight_class(value: u16) -> u16 {
+    value.clamp(1, 1000)
 }
 
 fn best_name(face: &ttf_parser::Face<'_>, name_id: u16) -> Option<String> {
@@ -178,9 +255,9 @@ fn metadata_name_score(name: &ttf_parser::name::Name<'_>, value: &str) -> i32 {
 fn language_score(language_id: u16) -> i32 {
     match language_id {
         0x0804 | 0x0404 | 0x0c04 | 0x1004 | 0x1404 => 100, // zh-CN/TW/HK/SG/MO
-        0x0411 => 95,                                    // ja-JP
-        0x0412 => 90,                                    // ko-KR
-        0x0409 | 0x0809 => 85,                           // en-US/en-GB
+        0x0411 => 95,                                      // ja-JP
+        0x0412 => 90,                                      // ko-KR
+        0x0409 | 0x0809 => 85,                             // en-US/en-GB
         0 => 50,
         _ => 40,
     }
@@ -251,7 +328,8 @@ mod tests {
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    use super::{normalize_metadata_name, scan_font_directory_sync};
+    use super::{available_weights, normalize_metadata_name, scan_font_directory_sync};
+    use crate::font_model::FontWeightRange;
 
     struct TestDir {
         path: PathBuf,
@@ -302,7 +380,10 @@ mod tests {
         let fonts = scan_font_directory_sync(dir.path().to_string_lossy().to_string())
             .expect("scan should succeed");
 
-        let names = fonts.iter().map(|font| font.name.as_str()).collect::<Vec<_>>();
+        let names = fonts
+            .iter()
+            .map(|font| font.name.as_str())
+            .collect::<Vec<_>>();
         assert_eq!(names, vec!["Alpha Sans", "Beta Serif"]);
         assert_eq!(fonts[0].format, "ttf");
         assert_eq!(fonts[0].name_source, "file_name");
@@ -345,7 +426,10 @@ mod tests {
     #[test]
     fn rejects_question_mark_placeholder_names() {
         assert_eq!(normalize_metadata_name("???? W01".to_string()), None);
-        assert_eq!(normalize_metadata_name("?????????? Regular".to_string()), None);
+        assert_eq!(
+            normalize_metadata_name("?????????? Regular".to_string()),
+            None
+        );
     }
 
     #[test]
@@ -357,6 +441,25 @@ mod tests {
         assert_eq!(
             normalize_metadata_name("筑紫A丸ゴシック".to_string()),
             Some("筑紫A丸ゴシック".to_string())
+        );
+    }
+
+    #[test]
+    fn static_fonts_expose_only_their_declared_weight() {
+        assert_eq!(available_weights(700, None), vec![700]);
+    }
+
+    #[test]
+    fn variable_fonts_expose_weights_inside_axis_range() {
+        let range = FontWeightRange {
+            min: 250,
+            default: 400,
+            max: 750,
+        };
+
+        assert_eq!(
+            available_weights(400, Some(&range)),
+            vec![250, 300, 400, 500, 600, 700, 750]
         );
     }
 }

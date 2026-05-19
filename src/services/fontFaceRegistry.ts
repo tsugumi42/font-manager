@@ -29,7 +29,7 @@ function registerFontFace(font: FontData) {
   font-family: "${escapeCssString(font.renderFamily)}";
   src: url("${escapeCssUrl(sourceUrl)}")${formatPart};
   font-style: normal;
-  font-weight: 100 900;
+  font-weight: ${fontFaceWeightDescriptor(font)};
   font-display: swap;
 }`
 
@@ -88,6 +88,15 @@ function cssFontFormat(format: FontData['format']): string {
         default:
             return ''
     }
+}
+
+function fontFaceWeightDescriptor(font: FontData): string {
+    const range = font.variableWeightRange
+    if (range) {
+        return `${range.min} ${range.max}`
+    }
+
+    return `${font.weightClass || 400}`
 }
 
 function escapeCssString(value: string): string {

@@ -13,10 +13,13 @@ import { useFontStore } from '@/stores/fontStore'
 import { previewTemplates } from '@/data/previewTemplates'
 import { previewThemes } from '@/data/previewThemes'
 import { PRESET_TEXTS } from '@/data/mockFonts'
+import { fontWeightOptions, fontWeightSummary } from '@/services/fontWeightOptions'
 
 const fontStore = useFontStore()
 
 const showVerticalControls = computed(() => fontStore.selectedTemplate.supportsVertical)
+const weightOptions = computed(() => fontWeightOptions(fontStore.selectedFont))
+const weightSummary = computed(() => fontWeightSummary(fontStore.selectedFont))
 
 const templateOptions = previewTemplates.map((t) => ({
   label: t.name,
@@ -27,18 +30,6 @@ const themeOptions = previewThemes.map((t) => ({
   label: t.name,
   value: t.id,
 }))
-
-const weightOptions = [
-  { label: 'Thin (100)', value: 100 },
-  { label: 'ExtraLight (200)', value: 200 },
-  { label: 'Light (300)', value: 300 },
-  { label: 'Regular (400)', value: 400 },
-  { label: 'Medium (500)', value: 500 },
-  { label: 'SemiBold (600)', value: 600 },
-  { label: 'Bold (700)', value: 700 },
-  { label: 'ExtraBold (800)', value: 800 },
-  { label: 'Black (900)', value: 900 },
-]
 
 const verticalOptions = [
   { label: '从右向左 · 混合朝向', value: 'vertical-rl-mixed' },
@@ -128,12 +119,12 @@ function onThemeChange(val: string) {
 
       <!-- 字重 -->
       <div>
-        <NText depth="3" class="ctrl-label">字重</NText>
+        <NText depth="3" class="ctrl-label">字重<span v-if="weightSummary">：{{ weightSummary }}</span></NText>
         <NSelect
           size="small"
           :value="fontStore.fontWeight"
           :options="weightOptions"
-          @update:value="fontStore.fontWeight = $event"
+          @update:value="fontStore.setFontWeight"
         />
       </div>
 

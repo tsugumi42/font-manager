@@ -4,6 +4,7 @@ import { ALL_TAGS } from '@/data/mockFonts'
 import { getPreviewTemplate } from '@/data/previewTemplates'
 import { mockFontRepository } from '@/services/fontRepository'
 import { loadSavedFontLibrary, saveFontLibrary } from '@/services/fontLibraryStorage'
+import { closestFontWeight } from '@/services/fontWeightOptions'
 import { scanFontDirectory as scanTauriFontDirectory } from '@/services/tauriFontRepository'
 import type { LyricsEffect } from '@/types/preview'
 import type {
@@ -272,7 +273,12 @@ export const useFontStore = defineStore('font', () => {
 
     function selectFont(id: string) {
         selectedFontId.value = id
+        fontWeight.value = closestFontWeight(selectedFont.value, fontWeight.value)
         activeTab.value = 'preview'
+    }
+
+    function setFontWeight(weight: number) {
+        fontWeight.value = weight
     }
 
     async function loadFonts() {
@@ -288,6 +294,7 @@ export const useFontStore = defineStore('font', () => {
                 libraryLoadedFromStorage.value = true
                 lastScanSummary.value = makeScanSummary(savedLibrary.fonts)
                 selectedFontId.value = savedLibrary.fonts[0].id
+                fontWeight.value = closestFontWeight(selectedFont.value, fontWeight.value)
                 return
             }
 
@@ -298,6 +305,7 @@ export const useFontStore = defineStore('font', () => {
             libraryLoadedFromStorage.value = false
             if (!selectedFontId.value && fonts.value.length > 0) {
                 selectedFontId.value = fonts.value[0].id
+                fontWeight.value = closestFontWeight(selectedFont.value, fontWeight.value)
             }
         } catch (error) {
             fontLoadError.value = error instanceof Error ? error.message : String(error)
@@ -318,6 +326,7 @@ export const useFontStore = defineStore('font', () => {
             lastScannedAt.value = new Date().toISOString()
             libraryLoadedFromStorage.value = false
             selectedFontId.value = scannedFonts[0]?.id ?? null
+            fontWeight.value = closestFontWeight(selectedFont.value, fontWeight.value)
             activeTab.value = 'preview'
             compareFontIds.value = []
             searchQuery.value = ''
@@ -631,6 +640,7 @@ export const useFontStore = defineStore('font', () => {
         setTheme,
         resetToTemplateDefaults,
         setPreviewText,
+        setFontWeight,
         // 多字体对比 actions
         toggleCompareFont,
         clearCompare,

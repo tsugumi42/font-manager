@@ -14,6 +14,9 @@ interface ScannedFont {
     format: FontData['format']
     fileSize: string
     isVariable: boolean
+    weightClass: number
+    availableWeights: number[]
+    variableWeightRange: FontData['variableWeightRange']
     version: string
     vendor: string
     copyright: string
