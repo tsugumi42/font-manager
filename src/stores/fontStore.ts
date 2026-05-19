@@ -85,8 +85,10 @@ export const useFontStore = defineStore('font', () => {
     // ===== 三态过滤 tags 计数 =====
     const tagCounts = computed<Record<string, number>>(() => {
         const counts: Record<string, number> = {}
-        for (const tag of ALL_TAGS) {
-            counts[tag] = fonts.value.filter((f) => f.tags.includes(tag)).length
+        for (const font of fonts.value) {
+            for (const tag of font.tags) {
+                counts[tag] = (counts[tag] || 0) + 1
+            }
         }
         return counts
     })
@@ -543,7 +545,25 @@ export const useFontStore = defineStore('font', () => {
         showFavoritesOnly.value = filter === 'favorites'
     }
 
-    const allTags = computed(() => ALL_TAGS)
+    const allTags = computed(() => {
+        const tags = new Set(ALL_TAGS)
+        for (const font of fonts.value) {
+            for (const tag of font.tags) {
+                const normalized = tag.trim()
+                if (normalized) tags.add(normalized)
+            }
+        }
+
+        const presetOrder = new Map(ALL_TAGS.map((tag, index) => [tag, index]))
+        return Array.from(tags).sort((a, b) => {
+            const aPreset = presetOrder.get(a)
+            const bPreset = presetOrder.get(b)
+            if (aPreset !== undefined && bPreset !== undefined) return aPreset - bPreset
+            if (aPreset !== undefined) return -1
+            if (bPreset !== undefined) return 1
+            return a.localeCompare(b, 'zh-Hans-CN')
+        })
+    })
 
     const languageOptions = computed(() => {
         const langs = new Set<string>()
