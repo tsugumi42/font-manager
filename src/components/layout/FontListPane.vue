@@ -1,16 +1,41 @@
 <script setup lang="ts">
-import { NInput, NSelect, NScrollbar, NEmpty } from 'naive-ui'
+import { open } from '@tauri-apps/plugin-dialog'
+import { NAlert, NButton, NInput, NSelect, NScrollbar, NEmpty, useMessage } from 'naive-ui'
 import { useFontStore } from '@/stores/fontStore'
 import FontListItem from '@/components/font/FontListItem.vue'
 import type { SortKey } from '@/types/font'
 
 const fontStore = useFontStore()
+const message = useMessage()
 
 const sortOptions = [
   { label: '按名称', value: 'name' as SortKey },
   { label: '按来源', value: 'source' as SortKey },
   { label: '按授权', value: 'license' as SortKey },
 ]
+
+async function scanDirectory() {
+  let selected: string | string[] | null
+  try {
+    selected = await open({
+      directory: true,
+      multiple: false,
+      title: '选择字体目录',
+    })
+  } catch (error) {
+    message.error(error instanceof Error ? error.message : String(error))
+    return
+  }
+
+  if (typeof selected !== 'string') return
+
+  await fontStore.scanFontDirectory(selected)
+  if (fontStore.fontLoadError) {
+    message.error(fontStore.fontLoadError)
+  } else {
+    message.success(`已扫描 ${fontStore.fonts.length} 个字体文件`)
+  }
+}
 </script>
 
 <template>
@@ -29,7 +54,24 @@ const sortOptions = [
         size="small"
         class="sort-select"
       />
+      <NButton
+        size="small"
+        type="primary"
+        ghost
+        :loading="fontStore.isLoadingFonts"
+        @click="scanDirectory"
+      >
+        扫描目录
+      </NButton>
     </div>
+    <NAlert
+      v-if="fontStore.fontLoadError"
+      type="error"
+      :show-icon="false"
+      class="load-error"
+    >
+      {{ fontStore.fontLoadError }}
+    </NAlert>
     <NScrollbar class="list-scroll">
       <div v-if="fontStore.filteredFonts.length > 0" class="font-list">
         <FontListItem
@@ -60,6 +102,7 @@ const sortOptions = [
 
 .list-toolbar {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   padding: 12px;
   border-bottom: 1px solid var(--n-border-color);
@@ -67,11 +110,16 @@ const sortOptions = [
 }
 
 .search-input {
-  flex: 1;
+  flex: 1 1 150px;
 }
 
 .sort-select {
-  width: 130px;
+  width: 112px;
+  flex-shrink: 0;
+}
+
+.load-error {
+  margin: 8px 12px 0;
   flex-shrink: 0;
 }
 

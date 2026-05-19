@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { ALL_TAGS } from '@/data/mockFonts'
 import { getPreviewTemplate } from '@/data/previewTemplates'
 import { mockFontRepository } from '@/services/fontRepository'
+import { scanFontDirectory as scanTauriFontDirectory } from '@/services/tauriFontRepository'
 import type { LyricsEffect } from '@/types/preview'
 import type {
     FontData,
@@ -272,6 +273,29 @@ export const useFontStore = defineStore('font', () => {
         }
     }
 
+    async function scanFontDirectory(path: string) {
+        isLoadingFonts.value = true
+        fontLoadError.value = null
+
+        try {
+            const scannedFonts = await scanTauriFontDirectory(path)
+            fonts.value = scannedFonts
+            selectedFontId.value = scannedFonts[0]?.id ?? null
+            activeTab.value = 'preview'
+            compareFontIds.value = []
+            searchQuery.value = ''
+            sidebarSourceFilter.value = 'all'
+            showFavoritesOnly.value = false
+            clearTagFilter()
+            clearLanguageFilter()
+            clearLicenseFilter()
+        } catch (error) {
+            fontLoadError.value = error instanceof Error ? error.message : String(error)
+        } finally {
+            isLoadingFonts.value = false
+        }
+    }
+
     function setTab(tab: TabKey) {
         activeTab.value = tab
     }
@@ -467,6 +491,7 @@ export const useFontStore = defineStore('font', () => {
         licenseOptions,
         // 字体操作
         loadFonts,
+        scanFontDirectory,
         selectFont,
         setTab,
         toggleFavorite,
