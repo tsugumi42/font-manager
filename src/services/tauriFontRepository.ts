@@ -10,6 +10,10 @@ interface ScannedFont {
     path: string
     format: FontData['format']
     fileSize: string
+    isVariable: boolean
+    version: string
+    vendor: string
+    copyright: string
 }
 
 export async function scanFontDirectory(path: string): Promise<FontData[]> {
@@ -22,14 +26,10 @@ export async function scanFontDirectory(path: string): Promise<FontData[]> {
         licenseStatus: 'unknown',
         favorite: false,
         supportsVertical: true,
-        isVariable: false,
         unicodeCoverage: [],
         missingCharsMock: [],
         note: '',
         website: '',
-        version: '',
-        vendor: '',
-        copyright: '',
         sampleText: font.name,
     }))
 }

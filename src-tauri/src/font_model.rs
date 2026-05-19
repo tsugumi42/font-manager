@@ -11,4 +11,8 @@ pub struct ScannedFont {
     pub path: String,
     pub format: String,
     pub file_size: String,
+    pub is_variable: bool,
+    pub version: String,
+    pub vendor: String,
+    pub copyright: String,
 }
