@@ -17,6 +17,7 @@ export interface FontData {
   id: string
   name: string
   family: string
+  renderFamily?: string
   style: string
   source: FontSource
   path: string

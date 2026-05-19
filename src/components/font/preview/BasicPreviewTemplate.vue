@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { getPreviewTheme } from '@/data/previewThemes'
+import { fontFamilyCss } from '@/services/fontFaceRegistry'
 import type { FontData } from '@/types/font'
 
 const props = defineProps<{
@@ -34,14 +35,14 @@ const bgStyle = computed(() => {
   return { backgroundColor: t.background }
 })
 
-const fontStyle = {
-  fontFamily: `"${props.font.family}", "Microsoft YaHei", sans-serif`,
+const fontStyle = computed(() => ({
+  fontFamily: fontFamilyCss(props.font),
   fontWeight: props.fontWeight,
   color: theme.value.foreground,
-}
+}))
 
 const horizontalStyle = computed(() => ({
-  ...fontStyle,
+  ...fontStyle.value,
   fontSize: `${props.fontSize}px`,
   lineHeight: props.lineHeight,
   letterSpacing: `${props.letterSpacing}px`,
@@ -60,7 +61,7 @@ const verticalModeCss = computed<Record<string, string>>(() => {
 const verticalStyle = computed(() => {
   const h = props.compact ? Math.min(props.verticalHeight, 180) : props.verticalHeight
   return {
-    ...fontStyle,
+    ...fontStyle.value,
     fontSize: `${props.fontSize}px`,
     lineHeight: Math.max(props.lineHeight, 1.6),
     letterSpacing: `${props.letterSpacing}px`,

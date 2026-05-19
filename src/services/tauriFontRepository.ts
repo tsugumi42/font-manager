@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
+import { attachRenderFamilies } from '@/services/fontFaceRegistry'
 import type { FontData } from '@/types/font'
 
 interface ScannedFont {
@@ -19,7 +20,7 @@ interface ScannedFont {
 export async function scanFontDirectory(path: string): Promise<FontData[]> {
     const scanned = await invoke<ScannedFont[]>('scan_font_directory', { path })
 
-    return scanned.map((font) => ({
+    return attachRenderFamilies(scanned.map((font) => ({
         ...font,
         languages: [],
         tags: [],
@@ -31,5 +32,5 @@ export async function scanFontDirectory(path: string): Promise<FontData[]> {
         note: '',
         website: '',
         sampleText: font.name,
-    }))
+    })))
 }

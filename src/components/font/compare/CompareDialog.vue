@@ -19,6 +19,7 @@ import { LANGUAGE_LABELS, LICENSE_LABELS, PRESET_TEXTS } from '@/data/mockFonts'
 import { previewTemplates } from '@/data/previewTemplates'
 import { previewThemes } from '@/data/previewThemes'
 import FontPreviewRenderer from '@/components/font/preview/FontPreviewRenderer.vue'
+import { fontFamilyCss } from '@/services/fontFaceRegistry'
 
 const props = defineProps<{
   show: boolean
@@ -263,7 +264,7 @@ function handleClose() {
               <!-- 字体信息头 -->
               <div class="card-header">
                 <div class="card-header-left">
-                  <span class="card-font-name" :style="{ fontFamily: f.family }">{{ f.name }}</span>
+                  <span class="card-font-name" :style="{ fontFamily: fontFamilyCss(f) }">{{ f.name }}</span>
                   <span class="card-font-family">{{ f.family }}</span>
                 </div>
                 <div class="card-header-right">

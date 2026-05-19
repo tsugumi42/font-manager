@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { getPreviewTheme } from '@/data/previewThemes'
+import { fontFamilyCss } from '@/services/fontFaceRegistry'
 import type { FontData } from '@/types/font'
 import type { LyricsEffect } from '@/types/preview'
 
@@ -34,7 +35,7 @@ const bgStyle = computed(() => {
   return { backgroundColor: t.background }
 })
 
-const fontFamily = computed(() => `"${props.font.family}", "Microsoft YaHei", sans-serif`)
+const fontFamily = computed(() => fontFamilyCss(props.font))
 
 const textShadowEffect = computed(() => {
   const pf = props.lyricsEffect

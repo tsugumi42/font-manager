@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { getPreviewTheme } from '@/data/previewThemes'
+import { fontFamilyCss } from '@/services/fontFaceRegistry'
 import type { FontData } from '@/types/font'
 
 const props = defineProps<{
@@ -32,7 +33,7 @@ const bgStyle = computed(() => {
   return { backgroundColor: t.background }
 })
 
-const fontFamily = computed(() => `"${props.font.family}", "Microsoft YaHei", sans-serif`)
+const fontFamily = computed(() => fontFamilyCss(props.font))
 
 const uiElements = [
   { type: 'title' as const, text: '小鸟游星野', sub: 'Lv.87', right: 'HP: 12840' },
