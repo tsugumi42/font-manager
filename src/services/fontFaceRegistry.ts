@@ -2,41 +2,52 @@ import { convertFileSrc } from '@tauri-apps/api/core'
 import type { FontData } from '@/types/font'
 
 const STYLE_ELEMENT_ID = 'font-manager-dynamic-font-faces'
+const registeredFontFaceRules = new Map<string, string>()
 
 export function attachRenderFamilies(fonts: FontData[]): FontData[] {
-    const fontsWithRenderFamilies = fonts.map((font) => ({
+    clearRegisteredFontFaces()
+    return fonts.map((font) => ({
         ...font,
         renderFamily: makeRenderFamily(font),
     }))
-    registerFontFaces(fontsWithRenderFamilies)
-    return fontsWithRenderFamilies
 }
 
 export function fontFamilyCss(font: FontData): string {
+    registerFontFace(font)
     return `"${escapeCssString(font.renderFamily || font.family)}", "Microsoft YaHei", sans-serif`
 }
 
-function registerFontFaces(fonts: FontData[]) {
+function registerFontFace(font: FontData) {
     if (typeof document === 'undefined') return
+    if (font.source !== 'custom' || !font.path || !font.renderFamily) return
+    if (registeredFontFaceRules.has(font.renderFamily)) return
 
-    const rules = fonts
-        .filter((font) => font.source === 'custom' && font.path && font.renderFamily)
-        .map((font) => {
-            const sourceUrl = convertFileSrc(font.path)
-            const format = cssFontFormat(font.format)
-            const formatPart = format ? ` format("${format}")` : ''
-
-            return `@font-face {
-  font-family: "${escapeCssString(font.renderFamily || font.family)}";
+    const sourceUrl = convertFileSrc(font.path)
+    const format = cssFontFormat(font.format)
+    const formatPart = format ? ` format("${format}")` : ''
+    const rule = `@font-face {
+  font-family: "${escapeCssString(font.renderFamily)}";
   src: url("${escapeCssUrl(sourceUrl)}")${formatPart};
   font-style: normal;
   font-weight: 100 900;
   font-display: swap;
 }`
-        })
-        .join('\n\n')
 
-    getOrCreateStyleElement().textContent = rules
+    registeredFontFaceRules.set(font.renderFamily, rule)
+    renderRegisteredFontFaces()
+}
+
+function clearRegisteredFontFaces() {
+    registeredFontFaceRules.clear()
+    if (typeof document === 'undefined') return
+    const existing = document.getElementById(STYLE_ELEMENT_ID)
+    if (existing instanceof HTMLStyleElement) {
+        existing.textContent = ''
+    }
+}
+
+function renderRegisteredFontFaces() {
+    getOrCreateStyleElement().textContent = [...registeredFontFaceRules.values()].join('\n\n')
 }
 
 function getOrCreateStyleElement(): HTMLStyleElement {

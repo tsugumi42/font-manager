@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { open } from '@tauri-apps/plugin-dialog'
-import { NAlert, NButton, NInput, NSelect, NScrollbar, NEmpty, useMessage } from 'naive-ui'
+import { NAlert, NButton, NInput, NSelect, NVirtualList, NEmpty, useMessage } from 'naive-ui'
 import { useFontStore } from '@/stores/fontStore'
 import FontListItem from '@/components/font/FontListItem.vue'
 import type { SortKey } from '@/types/font'
 
 const fontStore = useFontStore()
 const message = useMessage()
+const virtualItemSize = 96
 
 const sortOptions = [
   { label: '按名称', value: 'name' as SortKey },
@@ -103,20 +104,29 @@ async function scanDirectory() {
       <div class="summary-text">{{ scanSummaryText() }}</div>
       <div v-if="libraryMetaText()" class="summary-meta">{{ libraryMetaText() }}</div>
     </NAlert>
-    <NScrollbar class="list-scroll">
-      <div v-if="fontStore.filteredFonts.length > 0" class="font-list">
-        <FontListItem
-          v-for="font in fontStore.filteredFonts"
-          :key="font.id"
-          :font="font"
-          :selected="fontStore.selectedFontId === font.id"
-          @click="fontStore.selectFont(font.id)"
-        />
-      </div>
-      <div v-else class="empty-wrap">
+    <div v-if="fontStore.filteredFonts.length > 0" class="list-scroll">
+      <NVirtualList
+        class="font-list-virtual"
+        :items="fontStore.filteredFonts"
+        :item-size="virtualItemSize"
+        key-field="id"
+      >
+        <template #default="{ item: font }">
+          <div class="font-list-row">
+            <FontListItem
+              :font="font"
+              :selected="fontStore.selectedFontId === font.id"
+              @click="fontStore.selectFont(font.id)"
+            />
+          </div>
+        </template>
+      </NVirtualList>
+    </div>
+    <div v-else class="list-scroll">
+      <div class="empty-wrap">
         <NEmpty description="没有匹配的字体" />
       </div>
-    </NScrollbar>
+    </div>
   </div>
 </template>
 
@@ -168,10 +178,17 @@ async function scanDirectory() {
 
 .list-scroll {
   flex: 1;
+  min-height: 0;
 }
 
-.font-list {
+.font-list-virtual {
+  height: 100%;
+}
+
+.font-list-row {
+  height: 96px;
   padding: 4px;
+  box-sizing: border-box;
 }
 
 .empty-wrap {

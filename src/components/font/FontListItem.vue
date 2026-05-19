@@ -115,6 +115,8 @@ function onToggleCompare(e: MouseEvent) {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
+  height: 88px;
+  box-sizing: border-box;
   padding: 10px 8px;
   margin: 0 4px;
   border-radius: 6px;
@@ -174,6 +176,8 @@ function onToggleCompare(e: MouseEvent) {
   gap: 4px;
   flex-wrap: wrap;
   margin-top: 4px;
+  max-height: 20px;
+  overflow: hidden;
 }
 
 .item-right {
